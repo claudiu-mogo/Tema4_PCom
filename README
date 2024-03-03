@@ -1,0 +1,96 @@
+Mogodeanu_Claudiu_321CC_tema2_PCom
+
+! Am utilizat 2 sleep days
+
+!! Am implementat toate cerintele si am tratat toate cazurile de eroare,
+mai putin cazul de Too many requests, spunand explicit in cerinta sa nu 
+adaugam ceva special pentru acest caz.
+
+!!! Arhiva contine: fisierul sursa client.c, in care exista implementarea
+efectiva; 3 grupuri de surse si headere luate din laboratorul 9: buffer,
+helper, requests, in care am mai modificat putin functiile pentru a se plia
+mai bine pe rezolvarea mea; fisierul sursa si headerul parson, pentru a
+avea la dispozitie functiile de construire si parsare a unui json.
+
+Timp de implementare: ~10h
+
+- Abordare generala:
+
+Am utilizat un loop infinit in care se primesc comenzile si se realizeaza
+interactiunea cu serverul. Din acest loop o sa se dea break doar in momentul
+in care o sa se introduca "exit" de la tastatura.
+
+La fiecare inceput de loop o sa se astepte o comanda de la tastatura, apoi
+se vor face strcmp-uri repetate pentru a determina ce comanda a fost si sa
+se desfasoare pasii aferenti.
+
+In cazul in care comanda nu a fost detectata, se va afisa Wrong Command si se
+va astepta alta comanda, pana cand una va fi valida.
+
+- Buffere basic si cum sunt utilizate:
+
+Am declarat mai multe buffere global (pentru a nu le da ca parametru in functii)
+si le-am alocat la inceput in main (pentru a fi mai usor de eliberat memoria).
+Bufferele au, de obicei, 2 posibile roluri: sa stocheze unele stringuri pentru a
+fi asamblate concomitent in request, de exemplu access_route sau payload_type;
+sau sa se citeasca in ele input-uri de la stdin: 
+stdin_buffer -> retine comanda pe care vrea utilizatorul sa o dea
+username, password, general_ude_buffer-> retine inputurile ce vor fi puse in json
+
+- Buffere / pointeri speciali:
+
+message -> pointer la mesajul compus de compute_requesturi, alocat in functia de request
+server_response -> pointeaza la mesajul intors de receive_from_server, din nou, alocat acolo.
+cookie, jwt -> initial NULL, vor fi != NULL doar in momentul in care este un user logat,
+respectiv daca are acces la biblioteca. "cookie", in special, va fi utilizat drept reper
+daca exista un user logat deja si nu va permite logarea altuia.
+
+In momentul in care se da logout, cookie si jwt vor fi iar marcate NULL, semnificand ca
+se poate crea o sesiune noua pentru alt user.
+
+- Exit si eliberarea memoriei:
+
+In momentul in care utilizatorul introduce comanda exit, se va elibera intreaga memorie
+alocata in program (adica toate bufferele, fiind alocate cate o singura data).
+In momentul in care vrem sa reutilizam un buffer in timpul programului, nu il dealocam
+si il alocam la loc, ci doar dam memset cu 0. Astfel, avem cate o singura alocare
+per buffer si este usor de eliberat.
+
+- Unire functii asemanatoare:
+
+Functiile de register si login implica exact aceleasi actiuni, diferenta fiind un
+argument in access route. Asadar, am creat o functie separata auth_login, primind
+ca parametru tipul concret al operatiei. In aceasta se fac toate actiunile necesare:
+citire de la tastatura, trimitere POST request etc.
+
+In fisierul requests.c, am unit functiile asociate requesturilor de tip GET si DELETE,
+ele fiind identice in contextul temei, trimitand o cerere sub forma unui message.
+
+- Lucrul cu JSON:
+
+a) Cand primim un json in raspunsul de la server, caut ori dupa primul "[" pt array,
+ori dupa "{" daca este un singur obiect, salvand doar arrayul/obiectul pentru
+a fi parsat prin functiile din parson. Mainly scopul este sa scoatem o valoare,
+cautand dupa o anumita cheie, de exemplu token jwt.
+
+b) Cand vrem sa construim un json, punem pe rand cu cate un set_string sau set_number
+valoarea asociata pentru o cheie.
+
+Am utilizat Parson mainly pentru ca am scris in C si am abuzat de faptul ca se
+putea realiza usor crearea unui obiect sau a unui array, dar mai ales a facilitat
+lucrul cu perechile cheie-valoare si adaugarea acestora in json-ul efectiv.
+
+- Tratare erori:
+
+La inceputul fiecarei tratari de comanda, verificam daca cookie este null pentru a vedea
+daca are rost sau nu sa facem actiunea respectiva.
+
+In momentul in care primim un mesaj de la server, verificam daca acesta contine cuvantul
+"error" sau secventa "Bad Request", caz in care anuntam utilizatorul printr-un
+mesaj custom la stdout ca actiunea s-a finalizat cu insucces.
+
+In momentul in care formam un json, verificam daca, dupa initializare, s-a generat tipul
+pe care ni-l doream.
+
+Functia check_number verifica daca un sir este compus doar din cifre si nu are prima
+cifra 0. Asa decidem daca un numar dat ca input pentru page_count este valid.
